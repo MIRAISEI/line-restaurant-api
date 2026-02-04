@@ -8,6 +8,7 @@ import orderRoutes from './routes/orders';
 import userRoutes from './routes/users';
 import authRoutes from './routes/auth';
 import paypayRoutes from './routes/paypay';
+import categoryRoutes from './routes/category';
 
 dotenv.config();
 
@@ -27,8 +28,8 @@ app.use(express.json());
 
 // Health check endpoint (no database required)
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     message: 'Backend API is running',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'unknown'
@@ -41,15 +42,16 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/paypay', paypayRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // 404 handler for API routes (must be after all routes, before error handler)
 // Fixed for Vercel: Use middleware pattern instead of /api/* to avoid breaking Vercel routing
 app.use((req, res, next) => {
   if (req.originalUrl.startsWith('/api')) {
     console.log(`⚠️  404 - Route not found: ${req.method} ${req.originalUrl}`);
-    return res.status(404).json({ 
-      error: 'Route not found', 
-      method: req.method, 
+    return res.status(404).json({
+      error: 'Route not found',
+      method: req.method,
       path: req.originalUrl,
       availableRoutes: [
         'GET /api/menu',
@@ -63,6 +65,10 @@ app.use((req, res, next) => {
         'POST /api/users',
         'PATCH /api/users/:id',
         'DELETE /api/users/:id',
+        'GET /api/categories',
+        'POST /api/categories',
+        'PATCH /api/categories/:id',
+        'DELETE /api/categories/:id',
         'POST /api/auth/login',
         'POST /api/auth/verify',
         'POST /api/auth/set-password',
@@ -83,21 +89,21 @@ app.use((err: any, req: Request, res: Response, next: any) => {
   console.error('Error message:', err?.message);
   console.error('Request path:', req.path);
   console.error('Request method:', req.method);
-  
+
   // Don't send response if headers already sent
   if (res.headersSent) {
     console.error('⚠️  Response already sent, cannot send error response');
     return next(err);
   }
-  
+
   // Determine status code
   const status = err.status || err.statusCode || 500;
-  
+
   // Build error response
   const errorResponse: any = {
     error: err.message || 'Internal Server Error'
   };
-  
+
   // Add details in development mode
   if (process.env.NODE_ENV === 'development') {
     errorResponse.details = err.message;
@@ -111,7 +117,7 @@ app.use((err: any, req: Request, res: Response, next: any) => {
       errorResponse.code = err.code;
     }
   }
-  
+
   res.status(status).json(errorResponse);
 });
 
@@ -143,6 +149,10 @@ async function startServer() {
       console.log(`   POST   /api/users`);
       console.log(`   PATCH  /api/users/:id`);
       console.log(`   DELETE /api/users/:id`);
+      console.log(`   GET    /api/categories`);
+      console.log(`   POST   /api/categories`);
+      console.log(`   PATCH  /api/categories/:id`);
+      console.log(`   DELETE /api/categories/:id`);
       console.log(`   POST   /api/auth/login`);
       console.log(`   POST   /api/auth/verify`);
       console.log(`   POST   /api/auth/set-password`);

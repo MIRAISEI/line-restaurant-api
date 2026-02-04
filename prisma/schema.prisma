@@ -79,6 +79,18 @@ model User {
   @@index([isActive])
 }
 
+model Category {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  imageUrl  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categories")
+  @@index([isActive])
+}
+
 enum OrderStatus {
   Received
   Preparing
