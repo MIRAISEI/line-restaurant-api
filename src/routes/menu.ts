@@ -13,9 +13,15 @@ router.get('/', async (req, res) => {
 
     // Use native MongoDB driver for reads to ensure all fields are included (including isAddon)
     const db = await getMongoDb();
-    
+
     // For admin requests, return all items. For public requests, return only active items.
-    const query = isAdminRequest ? {} : { isActive: true };
+    const query: any = isAdminRequest ? {} : { isActive: true };
+
+    // Support category filtering
+    const { category } = req.query;
+    if (category) {
+      query.category = category as string;
+    }
 
     const menuItems = await db.collection('menu_items')
       .find(query)
@@ -51,7 +57,7 @@ router.post('/', async (req, res) => {
   try {
     console.log('POST /api/menu - Request received');
     console.log('Request body:', JSON.stringify(req.body, null, 2));
-    
+
     const { nameEn, nameJp, price, imageUrl, category, subcategory, isActive, isAddon, allowedAddons } = req.body;
 
     // Validate required fields
@@ -62,8 +68,8 @@ router.post('/', async (req, res) => {
       if (price === undefined) missingFields.push('price');
       if (!imageUrl) missingFields.push('imageUrl');
       if (!category) missingFields.push('category');
-      
-      return res.status(400).json({ 
+
+      return res.status(400).json({
         error: 'Missing required fields',
         missingFields: missingFields
       });
@@ -76,7 +82,7 @@ router.post('/', async (req, res) => {
     }
 
     console.log('Attempting to create menu item in database...');
-    
+
     // Use native MongoDB driver for writes (no replica set required)
     const db = await getMongoDb();
     const now = new Date();
@@ -94,9 +100,9 @@ router.post('/', async (req, res) => {
       createdAt: now,
       updatedAt: now,
     };
-    
+
     await db.collection('menu_items').insertOne(menuItemData);
-    
+
     // Convert to Prisma format for response
     const menuItem = {
       id: menuItemData._id.toString(),
@@ -122,7 +128,7 @@ router.post('/', async (req, res) => {
     console.error('  Error code:', error?.code);
     console.error('  Error name:', error?.name);
     console.error('  Error message:', error?.message);
-    
+
     // Try to serialize error safely
     let errorString = 'Unknown error';
     try {
@@ -132,42 +138,42 @@ router.post('/', async (req, res) => {
       if (error?.code) errorString += ` (Code: ${error.code})`;
     }
     console.error('  Full error object:', errorString);
-    
+
     if (error?.stack) {
       console.error('  Error stack:', error.stack);
     }
-    
+
     // Log Prisma-specific properties
     if (error?.meta) {
       console.error('  Prisma meta:', JSON.stringify(error.meta, null, 2));
     }
-    
+
     // Handle Prisma-specific errors
     if (error.code === 'P2002') {
-      return res.status(409).json({ 
+      return res.status(409).json({
         error: 'Menu item with this name already exists',
-        details: error.meta?.target 
+        details: error.meta?.target
       });
     }
-    
+
     if (error.code === 'P2003') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid reference in menu item data',
-        details: error.meta?.field_name 
+        details: error.meta?.field_name
       });
     }
 
     // Handle Prisma connection errors
     if (error.code === 'P1001' || error.message?.includes('connect')) {
-      return res.status(503).json({ 
+      return res.status(503).json({
         error: 'Database connection failed. Please check if MongoDB is running.',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
-    
+
     // Handle MongoDB replica set requirement
     if (error.code === 'P2031') {
-      return res.status(503).json({ 
+      return res.status(503).json({
         error: 'MongoDB must be configured as a replica set. See setup instructions in the backend README.',
         code: 'P2031',
         details: process.env.NODE_ENV === 'development' ? 'Run MongoDB as a single-node replica set for development' : undefined
@@ -182,12 +188,12 @@ router.post('/', async (req, res) => {
     } catch (e) {
       errorMessage = 'Failed to create menu item (error details unavailable)';
     }
-    
-    const errorResponse: any = { 
+
+    const errorResponse: any = {
       error: errorMessage,
       code: error?.code || 'UNKNOWN_ERROR'
     };
-    
+
     // Add details in development mode
     if (process.env.NODE_ENV === 'development') {
       if (error?.name) errorResponse.name = error.name;
@@ -200,9 +206,9 @@ router.post('/', async (req, res) => {
         errorResponse.meta = error.meta;
       }
     }
-    
+
     console.error('📤 Sending error response:', JSON.stringify(errorResponse, null, 2));
-    
+
     // Ensure response hasn't been sent already
     if (!res.headersSent) {
       return res.status(500).json(errorResponse);
@@ -293,31 +299,31 @@ router.delete('/:id', async (req, res) => {
 router.get('/addons', async (req, res) => {
   try {
     const { parentItemId } = req.query;
-    
+
     // Use native MongoDB driver to fetch addon-eligible items
     const db = await getMongoDb();
-    
+
     let addonItems;
-    
+
     if (parentItemId) {
       // Get the parent menu item to check its allowedAddons
       const parentItem = await db.collection('menu_items')
         .findOne({ _id: new ObjectId(parentItemId as string) });
-      
+
       if (!parentItem) {
         return res.status(404).json({ error: 'Parent menu item not found' });
       }
-      
+
       // If parent item has allowedAddons defined, only return those addons
       // Otherwise, return all addons (backward compatibility)
       const allowedAddonIds = parentItem.allowedAddons || [];
-      
+
       if (allowedAddonIds.length > 0) {
         // Convert string IDs to ObjectIds for query
         const allowedObjectIds = allowedAddonIds
           .filter((id: string) => ObjectId.isValid(id))
           .map((id: string) => new ObjectId(id));
-        
+
         addonItems = await db.collection('menu_items')
           .find({
             _id: { $in: allowedObjectIds },
