@@ -86,7 +86,7 @@ router.post('/', async (req, res) => {
       if (item.addons && item.addons.length > 0) {
         // Get parent item's allowedAddons
         const parentAllowedAddons = menuItem.allowedAddons || [];
-        
+
         for (const addon of item.addons) {
           const addonMenuItem = menuItemsMap.get(addon.itemId);
           if (!addonMenuItem) {
@@ -98,11 +98,11 @@ router.post('/', async (req, res) => {
           if (!addonMenuItem.isAddon) {
             return res.status(400).json({ error: `Item ${addon.itemId} is not marked as an addon` });
           }
-          
+
           // Check if addon is allowed for this parent item
           if (parentAllowedAddons.length > 0 && !parentAllowedAddons.includes(addon.itemId)) {
-            return res.status(400).json({ 
-              error: `Addon ${addon.itemId} is not allowed for menu item ${item.itemId}` 
+            return res.status(400).json({
+              error: `Addon ${addon.itemId} is not allowed for menu item ${item.itemId}`
             });
           }
 
@@ -126,7 +126,7 @@ router.post('/', async (req, res) => {
     // Payment status: 'paid' for paypay_now, 'pending' for paypay_after or paypay (legacy), null for manual
     let finalPaymentMethod = paymentMethod || 'manual';
     let paymentStatus: 'pending' | 'paid' | null;
-    
+
     if (finalPaymentMethod === 'paypay_now') {
       paymentStatus = 'paid';
       finalPaymentMethod = 'paypay';
@@ -140,7 +140,7 @@ router.post('/', async (req, res) => {
       // manual
       paymentStatus = null;
     }
-    
+
     const order = {
       _id: orderObjectId,
       orderId: orderId,
@@ -219,7 +219,7 @@ router.get('/', async (req, res) => {
   try {
     // Use native MongoDB driver for more reliable querying
     const db = await getMongoDb();
-    
+
     // Fetch orders
     const orders = await db.collection('orders')
       .find({})
@@ -233,7 +233,7 @@ router.get('/', async (req, res) => {
       const orderItems = await db.collection('order_items')
         .find({ orderId: { $in: orderIds } })
         .toArray();
-      
+
       // Group items by orderId
       orderItems.forEach(item => {
         const orderIdStr = item.orderId.toString();
@@ -281,7 +281,7 @@ router.get('/', async (req, res) => {
       code: error?.code,
       name: error?.name,
     });
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to fetch orders',
       details: process.env.NODE_ENV === 'development' ? error?.message : undefined
     });
@@ -292,14 +292,14 @@ router.get('/', async (req, res) => {
 router.get('/:orderId', async (req, res) => {
   try {
     const { orderId } = req.params;
-    
+
     if (!orderId || orderId.trim() === '') {
       return res.status(400).json({ error: 'Order ID is required' });
     }
-    
+
     // Use native MongoDB driver
     const db = await getMongoDb();
-    
+
     // Find order by orderId (not _id)
     const order = await db.collection('orders').findOne({
       orderId: orderId
@@ -341,8 +341,83 @@ router.get('/:orderId', async (req, res) => {
     res.json(transformedOrder);
   } catch (error: any) {
     console.error('Error fetching order:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to fetch order',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// GET /api/orders/user/:userId - Get orders for a specific user
+router.get('/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId || userId.trim() === '') {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Use native MongoDB driver
+    const db = await getMongoDb();
+
+    // Fetch orders for this user
+    const orders = await db.collection('orders')
+      .find({ userId: userId })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    // Fetch all order items for these orders
+    const orderItemsMap = new Map();
+    if (orders.length > 0) {
+      const orderIds = orders.map(order => order._id);
+      const orderItems = await db.collection('order_items')
+        .find({ orderId: { $in: orderIds } })
+        .toArray();
+
+      // Group items by orderId
+      orderItems.forEach(item => {
+        const orderIdStr = item.orderId.toString();
+        if (!orderItemsMap.has(orderIdStr)) {
+          orderItemsMap.set(orderIdStr, []);
+        }
+        orderItemsMap.get(orderIdStr).push(item);
+      });
+    }
+
+    // Transform to match frontend format
+    const transformedOrders = orders.map((order) => {
+      const orderIdStr = order._id.toString();
+      const items = (orderItemsMap.get(orderIdStr) || []).map((item: any) => ({
+        itemId: item.itemId.toString(),
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        parentItemId: item.parentItemId ? item.parentItemId.toString() : undefined,
+      }));
+
+      return {
+        _id: order._id.toString(),
+        id: order._id.toString(),
+        orderId: order.orderId,
+        userId: order.userId,
+        displayName: order.displayName,
+        tableNumber: order.tableNumber,
+        lineUserId: order.lineUserId || undefined,
+        paymentMethod: order.paymentMethod || 'manual',
+        paymentStatus: order.paymentStatus || null,
+        items: items,
+        total: order.total,
+        status: order.status,
+        createdAt: order.createdAt instanceof Date ? order.createdAt.toISOString() : new Date(order.createdAt).toISOString(),
+        updatedAt: order.updatedAt instanceof Date ? order.updatedAt.toISOString() : new Date(order.updatedAt).toISOString(),
+      };
+    });
+
+    res.json(transformedOrders);
+  } catch (error: any) {
+    console.error('Error fetching user orders:', error);
+    res.status(500).json({
+      error: 'Failed to fetch user orders',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
@@ -353,7 +428,7 @@ router.get('/', async (req, res) => {
   try {
     // Use native MongoDB driver for more reliable querying
     const db = await getMongoDb();
-    
+
     // Fetch orders
     const orders = await db.collection('orders')
       .find({})
@@ -367,7 +442,7 @@ router.get('/', async (req, res) => {
       const orderItems = await db.collection('order_items')
         .find({ orderId: { $in: orderIds } })
         .toArray();
-      
+
       // Group items by orderId
       orderItems.forEach(item => {
         const orderIdStr = item.orderId.toString();
@@ -415,7 +490,7 @@ router.get('/', async (req, res) => {
       code: error?.code,
       name: error?.name,
     });
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to fetch orders',
       details: process.env.NODE_ENV === 'development' ? error?.message : undefined
     });
@@ -439,14 +514,14 @@ router.patch('/:id/status', async (req, res) => {
     // Use native MongoDB driver for writes (no replica set required)
     const db = await getMongoDb();
     const orderObjectId = new ObjectId(id);
-    
+
     const result = await db.collection('orders').findOneAndUpdate(
       { _id: orderObjectId },
-      { 
-        $set: { 
+      {
+        $set: {
           status: status,
           updatedAt: new Date()
-        } 
+        }
       },
       { returnDocument: 'after' }
     );
@@ -468,10 +543,10 @@ router.patch('/:id/status', async (req, res) => {
       userId: result.userId,
       displayName: result.displayName,
       tableNumber: result.tableNumber,
-        lineUserId: result.lineUserId || undefined,
-        paymentMethod: result.paymentMethod || 'manual',
-        paymentStatus: result.paymentStatus || null,
-        items: orderItems.map((item) => ({
+      lineUserId: result.lineUserId || undefined,
+      paymentMethod: result.paymentMethod || 'manual',
+      paymentStatus: result.paymentStatus || null,
+      items: orderItems.map((item) => ({
         itemId: item.itemId.toString(),
         name: item.name,
         quantity: item.quantity,
@@ -490,7 +565,7 @@ router.patch('/:id/status', async (req, res) => {
         const readyMessageEn = `🍱 Your order ${result.orderId} from Table ${result.tableNumber} is ready! Please come to pick it up.`;
         const readyMessageJp = `🍱 テーブル ${result.tableNumber} のご注文 ${result.orderId} の準備ができました。お受け取りにお越しください。`;
         const readyMessage = `${readyMessageEn}\n\n${readyMessageJp}`;
-        
+
         await sendPushMessage(result.userId, readyMessage);
         console.log(`✅ Ready notification sent for order ${result.orderId}`);
       } catch (pushError: any) {
@@ -502,7 +577,7 @@ router.patch('/:id/status', async (req, res) => {
     res.json(transformedOrder);
   } catch (error: any) {
     console.error('Error updating order status:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to update order status',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -526,14 +601,14 @@ router.patch('/:id/payment', async (req, res) => {
     // Use native MongoDB driver for writes
     const db = await getMongoDb();
     const orderObjectId = new ObjectId(id);
-    
+
     const result = await db.collection('orders').findOneAndUpdate(
       { _id: orderObjectId },
-      { 
-        $set: { 
+      {
+        $set: {
           paymentStatus: paymentStatus,
           updatedAt: new Date()
-        } 
+        }
       },
       { returnDocument: 'after' }
     );
@@ -574,7 +649,7 @@ router.patch('/:id/payment', async (req, res) => {
     res.json(transformedOrder);
   } catch (error: any) {
     console.error('Error processing payment:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to process payment',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
