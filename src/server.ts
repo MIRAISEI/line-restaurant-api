@@ -194,8 +194,7 @@ process.on('SIGTERM', async () => {
 // Export app for Vercel serverless functions
 export default app;
 
-// Only start server if not in Vercel environment
-if (process.env.VERCEL !== '1') {
+// Only start server if not in Vercel or Netlify environment
+if (process.env.VERCEL !== "1" && process.env.NETLIFY !== "true") {
   startServer();
 }
-
