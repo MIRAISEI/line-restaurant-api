@@ -1,9 +1,9 @@
 [build]
   command = "npm run build"
-  functions = "api"
   publish = "public"
 
 [functions]
+  directory = "netlify/functions"
   node_bundler = "esbuild"
   external_node_modules = ["@prisma/client"]
 
