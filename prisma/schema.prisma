@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model MenuItem {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  nameEn        String
+  nameJp        String
+  price         Float
+  imageUrl      String
+  category      String
+  subcategory   String?
+  isActive      Boolean  @default(true)
+  isAddon       Boolean  @default(false)
+  allowedAddons String[] @default([]) // Array of addon IDs that can be added to this item
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  orderItems OrderItem[]
+
+  @@map("menu_items")
+}
+
+model Order {
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
+  orderId     String      @unique
+  userId      String
+  displayName String
+  tableNumber String
+  lineUserId  String?
+  items       OrderItem[]
+  total       Float
+  status      OrderStatus @default(Received)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("orders")
+  @@index([status])
+  @@index([createdAt])
+  @@index([lineUserId])
+}
+
+model OrderItem {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  orderId     String   @db.ObjectId
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId      String   @db.ObjectId
+  item        MenuItem @relation(fields: [itemId], references: [id])
+  name        String
+  quantity    Int
+  price       Float
+  parentItemId String? @db.ObjectId
+
+  @@map("order_items")
+}
+
+model User {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   @unique
+  displayName   String
+  email         String?
+  phone         String?
+  password      String?  // For admin login
+  role          UserRole @default(Customer)
+  totalOrders   Int      @default(0)
+  totalSpent    Float    @default(0)
+  lastOrderDate DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("users")
+  @@index([role])
+  @@index([isActive])
+}
+
+enum OrderStatus {
+  Received
+  Preparing
+  Ready
+  Completed
+}
+
+enum UserRole {
+  Customer
+  Staff
+  Manager
+  Admin
+}

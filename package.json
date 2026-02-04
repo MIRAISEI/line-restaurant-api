@@ -1,0 +1,60 @@
+{
+  "name": "sukiyarestaurant-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Sukiya Restaurant QR Order System",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "dev:nodemon": "nodemon",
+    "postinstall": "prisma generate",
+    "build": "prisma generate && tsc",
+    "start": "node dist/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "seed": "tsx src/scripts/seed.ts",
+    "seed:orders": "tsx src/scripts/seedOrders.ts",
+    "seed:users": "tsx src/scripts/seedUsers.ts",
+    "seed:passwords": "tsx src/scripts/setUserPasswords.ts",
+    "test:db": "tsx src/scripts/testDbConnection.ts",
+    "test:api": "tsx src/scripts/testApiEndpoints.ts",
+    "test:auth": "tsx src/scripts/testAuthFlow.ts",
+    "test:auth:complete": "tsx src/scripts/testAuthComplete.ts",
+    "test:push": "tsx src/scripts/testPushNotifications.ts",
+    "test:order-push": "tsx src/scripts/testOrderWithPush.ts",
+    "verify:auth": "tsx src/scripts/verifyAuthDependencies.ts",
+    "verify:vercel": "tsx src/scripts/verifyVercelDeployment.ts"
+  },
+  "keywords": [
+    "line",
+    "liff",
+    "restaurant",
+    "ordering"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@line/bot-sdk": "^9.3.0",
+    "@prisma/client": "^5.19.0",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^7.0.0",
+    "nodemon": "^3.1.11",
+    "serverless-http": "^4.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/ms": "^2.1.0",
+    "@types/node": "^20.14.9",
+    "prisma": "^5.19.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3"
+  }
+}
