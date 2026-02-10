@@ -62,14 +62,14 @@ class PayPayService {
   private accessToken: PayPayAccessToken | null = null;
 
   constructor() {
-    this.apiKey = process.env.PAYPAY_API_KEY || '';
-    this.apiSecret = process.env.PAYPAY_API_SECRET || '';
+    this.apiKey = process.env.PAYPAY_KEY_ID || '';
+    this.apiSecret = process.env.PAYPAY_KEY_SECRET || '';
     this.merchantId = process.env.PAYPAY_MERCHANT_ID || '';
-    
+
     // Use sandbox URL if in development, production URL otherwise
     const isProduction = process.env.PAYPAY_ENVIRONMENT === 'production';
-    this.baseUrl = isProduction 
-      ? 'https://api.paypay.ne.jp' 
+    this.baseUrl = isProduction
+      ? 'https://api.paypay.ne.jp'
       : 'https://stg-api.sandbox.paypay.ne.jp';
   }
 
@@ -100,7 +100,7 @@ class PayPayService {
     try {
       // Create Basic Auth header
       const credentials = Buffer.from(`${this.apiKey}:${this.apiSecret}`).toString('base64');
-      
+
       const response = await fetch(`${this.baseUrl}/v2/oauth2/token`, {
         method: 'POST',
         headers: {
@@ -116,10 +116,10 @@ class PayPayService {
       }
 
       const tokenData = await response.json() as PayPayAccessToken;
-      
+
       // Calculate expiry timestamp
       tokenData.expires_at = Math.floor(Date.now() / 1000) + (tokenData.expires_in || 3600);
-      
+
       this.accessToken = tokenData;
       return tokenData.access_token;
     } catch (error: any) {

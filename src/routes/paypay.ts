@@ -29,7 +29,7 @@ router.get('/qr/:orderId', async (req, res) => {
 
         // Check if order is already paid
         if (order.paymentStatus === 'paid') {
-          return res.status(400).json({ 
+          return res.status(400).json({
             error: 'Order is already paid',
             paymentStatus: 'paid',
           });
@@ -73,8 +73,8 @@ router.get('/qr/:orderId', async (req, res) => {
       paymentUrl,
       qrUrl,
       provider: 'qrserver.com',
-      note: paypayService.isConfigured() 
-        ? 'PayPay API failed, using fallback QR code' 
+      note: paypayService.isConfigured()
+        ? 'PayPay API failed, using fallback QR code'
         : 'PayPay API not configured, using fallback QR code',
     });
   } catch (error: any) {
@@ -83,6 +83,66 @@ router.get('/qr/:orderId', async (req, res) => {
       error: 'Failed to generate PayPay QR',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
+  }
+});
+
+// GET /api/paypay/status/:orderId
+// Check if the payment for a QR code has been completed
+router.get('/status/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    if (!orderId) {
+      return res.status(400).json({ error: 'orderId is required' });
+    }
+
+    const db = await getMongoDb();
+
+    // First check our local database status
+    const order = await db.collection('orders').findOne({ orderId: orderId });
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (order.paymentStatus === 'paid') {
+      return res.json({ status: 'paid', orderId });
+    }
+
+    // If not paid in our DB, check with PayPay API if configured
+    if (paypayService.isConfigured()) {
+      try {
+        const paymentDetails = await paypayService.getPaymentDetails(orderId);
+
+        // Result code for successful payment check
+        if (paymentDetails?.resultInfo?.code === 'SUCCESS' && paymentDetails?.data?.status === 'COMPLETED') {
+          // Update our DB if PayPay says it's paid
+          await db.collection('orders').updateOne(
+            { orderId: orderId },
+            {
+              $set: {
+                paymentStatus: 'paid',
+                updatedAt: new Date()
+              }
+            }
+          );
+
+          return res.json({
+            status: 'paid',
+            orderId,
+            source: 'paypay_api'
+          });
+        }
+      } catch (paypayError) {
+        console.error('Error fetching PayPay status:', paypayError);
+      }
+    }
+
+    return res.json({
+      status: order.paymentStatus || 'pending',
+      orderId
+    });
+  } catch (error: any) {
+    console.error('Error checking payment status:', error);
+    res.status(500).json({ error: 'Failed to check payment status' });
   }
 });
 

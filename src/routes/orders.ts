@@ -128,16 +128,15 @@ router.post('/', async (req, res) => {
     let paymentStatus: 'pending' | 'paid' | null;
 
     if (finalPaymentMethod === 'paypay_now') {
-      paymentStatus = 'paid';
+      paymentStatus = 'pending'; // Start as pending even if we'll show QR immediately
       finalPaymentMethod = 'paypay';
     } else if (finalPaymentMethod === 'paypay_after') {
       paymentStatus = 'pending';
       finalPaymentMethod = 'paypay';
     } else if (finalPaymentMethod === 'paypay') {
-      // Legacy support: default to 'pending' for paypay
       paymentStatus = 'pending';
     } else {
-      // manual
+      // manual payment has no status tracker usually
       paymentStatus = null;
     }
 
