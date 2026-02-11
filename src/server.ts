@@ -9,6 +9,7 @@ import userRoutes from './routes/users';
 import authRoutes from './routes/auth';
 import paypayRoutes from './routes/paypay';
 import categoryRoutes from './routes/category';
+import cartRoutes from './routes/cart';
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/paypay', paypayRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/user/cart', cartRoutes);
 
 // 404 handler for API routes (must be after all routes, before error handler)
 // Fixed for Vercel: Use middleware pattern instead of /api/* to avoid breaking Vercel routing

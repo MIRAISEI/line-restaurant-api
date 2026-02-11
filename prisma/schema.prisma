@@ -22,6 +22,7 @@ model MenuItem {
   updatedAt     DateTime @updatedAt
 
   orderItems OrderItem[]
+  cartItems  CartItem[]
 
   @@map("menu_items")
 }
@@ -77,6 +78,35 @@ model User {
   @@map("users")
   @@index([role])
   @@index([isActive])
+
+  cart Cart?
+}
+
+model Cart {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [userId])
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("carts")
+}
+
+model CartItem {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  cartId     String   @db.ObjectId
+  cart       Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  menuItemId String   @db.ObjectId
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  quantity   Int
+  price      Float
+  totalAmount Float
+  addons     Json?    // Array of ICartItem for addons
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("cart_items")
 }
 
 model Category {
