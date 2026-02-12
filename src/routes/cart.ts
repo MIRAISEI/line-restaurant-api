@@ -29,6 +29,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 
         // Map to frontend format
         const formattedItems = cart.items.map((item: any) => ({
+            cartItemId: item.id, // Map DB id to cartItemId for uniqueness in UI
             id: item.menuItemId,
             title: item.menuItem.nameEn,
             price: item.price,
