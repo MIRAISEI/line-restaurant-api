@@ -216,12 +216,31 @@ router.post('/', async (req, res) => {
 // GET /api/orders - Get all orders
 router.get('/', async (req, res) => {
   try {
+    // Prepare filter query
+    const { startDate, endDate } = req.query as any;
+    const query: any = {};
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        const start = new Date(startDate as string);
+        if (!isNaN(start.getTime())) query.createdAt.$gte = start;
+      }
+      if (endDate) {
+        const end = new Date(endDate as string);
+        if (!isNaN(end.getTime())) {
+          const endOfDay = new Date(end);
+          endOfDay.setHours(23, 59, 59, 999);
+          query.createdAt.$lte = endOfDay;
+        }
+      }
+    }
+
     // Use native MongoDB driver for more reliable querying
     const db = await getMongoDb();
 
     // Fetch orders
     const orders = await db.collection('orders')
-      .find({})
+      .find(query)
       .sort({ createdAt: -1 })
       .toArray();
 
@@ -425,12 +444,31 @@ router.get('/user/:userId', async (req, res) => {
 // GET /api/orders - Get all orders
 router.get('/', async (req, res) => {
   try {
+    // Prepare filter query
+    const { startDate, endDate } = req.query as any;
+    const query: any = {};
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        const start = new Date(startDate as string);
+        if (!isNaN(start.getTime())) query.createdAt.$gte = start;
+      }
+      if (endDate) {
+        const end = new Date(endDate as string);
+        if (!isNaN(end.getTime())) {
+          const endOfDay = new Date(end);
+          endOfDay.setHours(23, 59, 59, 999);
+          query.createdAt.$lte = endOfDay;
+        }
+      }
+    }
+
     // Use native MongoDB driver for more reliable querying
     const db = await getMongoDb();
 
     // Fetch orders
     const orders = await db.collection('orders')
-      .find({})
+      .find(query)
       .sort({ createdAt: -1 })
       .toArray();
 
